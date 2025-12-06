@@ -548,15 +548,18 @@ function createMeteorElement(value, isCorrect) {
 }
 
 function spawnMeteorSet() {
-    // Strictly limit to 5 meteors: 1 correct + 4 wrong
-    const maxMeteors = 5;
+    const gameArea = elements.game.area.getBoundingClientRect();
     const correctAnswer = gameState.correctAnswer;
 
-    // Generate exactly 4 wrong answers
+    // Detect mobile: if screen width is less than 600px, use fewer meteors
+    const isMobile = gameArea.width < 600;
+    const maxMeteors = isMobile ? 4 : 5;  // 4 on mobile, 5 on desktop
+
+    // Generate wrong answers
     const wrongAnswers = generateWrongAnswers(correctAnswer, maxMeteors - 1);
     const allAnswers = [correctAnswer, ...wrongAnswers.slice(0, maxMeteors - 1)];
 
-    // Ensure we have exactly 5 answers
+    // Ensure we have enough answers
     while (allAnswers.length < maxMeteors) {
         const extra = correctAnswer + allAnswers.length + Math.floor(Math.random() * 10);
         if (!allAnswers.includes(extra)) {
@@ -564,7 +567,7 @@ function spawnMeteorSet() {
         }
     }
 
-    // Limit to exactly 5
+    // Limit to max
     const finalAnswers = allAnswers.slice(0, maxMeteors);
 
     // Shuffle answers
@@ -573,28 +576,31 @@ function spawnMeteorSet() {
         [finalAnswers[i], finalAnswers[j]] = [finalAnswers[j], finalAnswers[i]];
     }
 
-    const gameArea = elements.game.area.getBoundingClientRect();
     const meteorWidth = CONFIG.meteorWidth;
-    const padding = CONFIG.gameAreaPadding;
+    // Use larger padding on mobile for better spacing
+    const padding = isMobile ? 30 : CONFIG.gameAreaPadding;
     const effectiveStage = getEffectiveStage();
     const fallDuration = getFallDuration(effectiveStage);
 
-    // Calculate fixed positions to guarantee no overlap
-    // Divide game area into equal sections for each meteor
-    const availableWidth = gameArea.width - (padding * 2) - meteorWidth;
-    const sectionWidth = availableWidth / maxMeteors;
+    // Calculate positions with guaranteed minimum spacing
+    const availableWidth = gameArea.width - (padding * 2);
+    const minSpacing = isMobile ? 25 : 15;  // Extra spacing between sections on mobile
+    const totalSpacing = minSpacing * (maxMeteors - 1);
+    const sectionWidth = (availableWidth - totalSpacing) / maxMeteors;
 
     const positions = [];
     for (let i = 0; i < finalAnswers.length; i++) {
-        // Place each meteor in its own section with slight random offset
-        const sectionStart = padding + (i * sectionWidth);
-        const randomOffset = Math.random() * (sectionWidth - meteorWidth);
-        const x = sectionStart + randomOffset;
+        // Center each meteor in its section
+        const sectionStart = padding + (i * (sectionWidth + minSpacing));
+        const x = sectionStart + (sectionWidth - meteorWidth) / 2;
         positions.push(Math.max(padding, Math.min(x, gameArea.width - meteorWidth - padding)));
     }
 
-    // Spawn each meteor with staggered timing
+    // Spawn each meteor with staggered timing AND vertical offset
     finalAnswers.forEach((answer, index) => {
+        // Stagger spawn timing more on mobile
+        const spawnDelay = isMobile ? CONFIG.meteorSpawnDelay * 1.5 : CONFIG.meteorSpawnDelay;
+
         setTimeout(() => {
             if (!gameState.isPlaying || gameState.isPaused) return;
 
@@ -605,16 +611,20 @@ function spawnMeteorSet() {
             const meteorElement = createMeteorElement(answer, isCorrect);
 
             const x = positions[index];
+            // Vertical stagger: each meteor starts at different Y position
+            // This prevents them from being on the same horizontal line
+            const yOffset = index * (isMobile ? 60 : 40);  // More vertical spread on mobile
+            const startY = -80 - yOffset;
 
             meteorElement.style.left = `${x}px`;
-            meteorElement.style.top = '-80px';
+            meteorElement.style.top = `${startY}px`;
 
             elements.game.meteorsContainer.appendChild(meteorElement);
 
             const meteorObj = {
                 element: meteorElement,
                 x: x,
-                y: -80,
+                y: startY,
                 value: answer,
                 isCorrect: isCorrect,
                 fallDuration: fallDuration,
