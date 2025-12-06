@@ -1364,17 +1364,32 @@ async function loadLeaderboard() {
             return b.score - a.score;
         });
 
-        // Take top 20
-        const topEntries = entries.slice(0, 20);
+        // Find current player's rank
+        let playerRank = -1;
+        let playerEntry = null;
+        for (let i = 0; i < entries.length; i++) {
+            const data = entries[i];
+            if (data.playerName === gameState.playerName &&
+                data.score === gameState.score &&
+                data.stage === gameState.stage) {
+                playerRank = i + 1;
+                playerEntry = data;
+                break;
+            }
+        }
+
+        // Take only top 10 for display
+        const topEntries = entries.slice(0, 10);
 
         let rank = 1;
         topEntries.forEach(data => {
             const row = document.createElement('tr');
 
-            // Highlight current player
-            if (data.playerName === gameState.playerName &&
+            // Highlight current player if in top 10
+            const isCurrentPlayer = data.playerName === gameState.playerName &&
                 data.score === gameState.score &&
-                data.stage === gameState.stage) {
+                data.stage === gameState.stage;
+            if (isCurrentPlayer) {
                 row.className = 'current-player';
             }
 
@@ -1391,6 +1406,27 @@ async function loadLeaderboard() {
             leaderboardBody.appendChild(row);
             rank++;
         });
+
+        // If player is outside top 10, show their rank below
+        if (playerRank > 10 && playerEntry) {
+            // Add separator row
+            const separatorRow = document.createElement('tr');
+            separatorRow.className = 'rank-separator';
+            separatorRow.innerHTML = `<td colspan="4" style="text-align: center; color: #888;">⋮</td>`;
+            leaderboardBody.appendChild(separatorRow);
+
+            // Add player's row
+            const playerRow = document.createElement('tr');
+            playerRow.className = 'current-player';
+            playerRow.innerHTML = `
+                <td class="rank-cell">${playerRank}</td>
+                <td class="player-cell">${playerEntry.playerName}</td>
+                <td class="stage-cell">${playerEntry.stage}</td>
+                <td class="score-cell">${playerEntry.score}</td>
+            `;
+            leaderboardBody.appendChild(playerRow);
+        }
+
     } catch (error) {
         console.error('Failed to load leaderboard:', error);
         elements.leaderboard.loading.classList.add('hidden');
