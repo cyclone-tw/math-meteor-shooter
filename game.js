@@ -597,6 +597,7 @@ function spawnMeteorSet() {
     }
 
     // Spawn each meteor with staggered timing AND vertical offset
+    // IMPORTANT: Do NOT skip any meteor based on current count - all answers including correct must spawn
     finalAnswers.forEach((answer, index) => {
         // Stagger spawn timing more on mobile
         const spawnDelay = isMobile ? CONFIG.meteorSpawnDelay * 1.5 : CONFIG.meteorSpawnDelay;
@@ -604,8 +605,8 @@ function spawnMeteorSet() {
         setTimeout(() => {
             if (!gameState.isPlaying || gameState.isPaused) return;
 
-            // Check if we already have max meteors on screen
-            if (gameState.meteors.length >= maxMeteors) return;
+            // REMOVED the maxMeteors check here - it was blocking correct answers!
+            // All meteors in finalAnswers array must spawn
 
             const isCorrect = answer === correctAnswer;
             const meteorElement = createMeteorElement(answer, isCorrect);
@@ -633,7 +634,12 @@ function spawnMeteorSet() {
             };
 
             gameState.meteors.push(meteorObj);
-        }, index * CONFIG.meteorSpawnDelay);
+
+            // Debug log to verify correct answer is being spawned
+            if (isCorrect) {
+                console.log('✓ Correct answer meteor spawned:', answer);
+            }
+        }, index * spawnDelay);
     });
 }
 
