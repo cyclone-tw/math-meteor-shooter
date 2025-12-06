@@ -50,10 +50,12 @@ const CONFIG = {
     bulletInterval: 150, // ms between shots
     meteorSpawnInterval: 1500, // ms between meteor spawns
     meteorWidth: 70,
-    meteorMinSpacing: 100, // Minimum horizontal distance between meteors
+    meteorMinSpacing: 120, // Minimum horizontal distance between meteors (increased)
     planeSpeed: 12, // pixels per frame (balanced for control)
-    wrongAnswerCount: 3, // Number of wrong answer meteors
-    meteorSpawnDelay: 400, // ms delay between each meteor spawn
+    touchSpeedMultiplier: 0.6, // Touch controls are slower for better precision
+    wrongAnswerCount: 4, // Number of wrong answer meteors (total 5 with correct)
+    maxMeteorsOnScreen: 5, // Maximum meteors visible at once
+    meteorSpawnDelay: 500, // ms delay between each meteor spawn (increased)
     nextQuestionDelay: 1500, // ms delay before spawning next question meteors
 
     // Game area
@@ -901,20 +903,25 @@ function updatePlane() {
     const planeWidth = gameState.plane.width;
     const planeHeight = gameState.plane.height;
 
+    // Use slower speed for touch controls
+    const isTouchActive = gameState.touch.joystickActive;
+    const speedMultiplier = isTouchActive ? CONFIG.touchSpeedMultiplier : 1;
+    const currentSpeed = CONFIG.planeSpeed * speedMultiplier;
+
     // Horizontal movement
     if (gameState.keys.left) {
-        gameState.plane.x -= CONFIG.planeSpeed;
+        gameState.plane.x -= currentSpeed;
     }
     if (gameState.keys.right) {
-        gameState.plane.x += CONFIG.planeSpeed;
+        gameState.plane.x += currentSpeed;
     }
 
     // Vertical movement
     if (gameState.keys.up) {
-        gameState.plane.y += CONFIG.planeSpeed;
+        gameState.plane.y += currentSpeed;
     }
     if (gameState.keys.down) {
-        gameState.plane.y -= CONFIG.planeSpeed;
+        gameState.plane.y -= currentSpeed;
     }
 
     // Boundary check - horizontal
@@ -991,13 +998,18 @@ function handleJoystickMove(e) {
     // Update knob position
     joystickKnob.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
 
-    // Calculate direction (with deadzone)
-    const deadzone = 15;
+    // Calculate direction (with deadzone) - use larger deadzone for mobile
+    const deadzone = 25;
 
+    // Use threshold-based controls instead of binary for smoother movement
     gameState.keys.left = deltaX < -deadzone;
     gameState.keys.right = deltaX > deadzone;
     gameState.keys.up = deltaY < -deadzone;
     gameState.keys.down = deltaY > deadzone;
+
+    // Store joystick intensity for proportional movement
+    gameState.touch.intensityX = Math.abs(deltaX) / maxRadius;
+    gameState.touch.intensityY = Math.abs(deltaY) / maxRadius;
 }
 
 function handleJoystickEnd(e) {
