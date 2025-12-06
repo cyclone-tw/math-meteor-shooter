@@ -548,48 +548,58 @@ function createMeteorElement(value, isCorrect) {
 }
 
 function spawnMeteorSet() {
+    // Strictly limit to 5 meteors: 1 correct + 4 wrong
+    const maxMeteors = 5;
     const correctAnswer = gameState.correctAnswer;
-    const wrongAnswers = generateWrongAnswers(correctAnswer, CONFIG.wrongAnswerCount);
-    const allAnswers = [correctAnswer, ...wrongAnswers];
+
+    // Generate exactly 4 wrong answers
+    const wrongAnswers = generateWrongAnswers(correctAnswer, maxMeteors - 1);
+    const allAnswers = [correctAnswer, ...wrongAnswers.slice(0, maxMeteors - 1)];
+
+    // Ensure we have exactly 5 answers
+    while (allAnswers.length < maxMeteors) {
+        const extra = correctAnswer + allAnswers.length + Math.floor(Math.random() * 10);
+        if (!allAnswers.includes(extra)) {
+            allAnswers.push(extra);
+        }
+    }
+
+    // Limit to exactly 5
+    const finalAnswers = allAnswers.slice(0, maxMeteors);
 
     // Shuffle answers
-    for (let i = allAnswers.length - 1; i > 0; i--) {
+    for (let i = finalAnswers.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [allAnswers[i], allAnswers[j]] = [allAnswers[j], allAnswers[i]];
+        [finalAnswers[i], finalAnswers[j]] = [finalAnswers[j], finalAnswers[i]];
     }
 
     const gameArea = elements.game.area.getBoundingClientRect();
     const meteorWidth = CONFIG.meteorWidth;
     const padding = CONFIG.gameAreaPadding;
-    const minSpacing = CONFIG.meteorMinSpacing;
     const effectiveStage = getEffectiveStage();
     const fallDuration = getFallDuration(effectiveStage);
-    const diffConfig = CONFIG.difficulties[gameState.difficulty];
 
-    // Generate positions with minimum spacing
-    const usedPositions = [];
+    // Calculate fixed positions to guarantee no overlap
+    // Divide game area into equal sections for each meteor
+    const availableWidth = gameArea.width - (padding * 2) - meteorWidth;
+    const sectionWidth = availableWidth / maxMeteors;
+
     const positions = [];
-
-    for (let i = 0; i < allAnswers.length; i++) {
-        let x;
-        let attempts = 0;
-        const maxAttempts = 50;
-
-        do {
-            const minX = padding;
-            const maxX = gameArea.width - meteorWidth - padding;
-            x = getRandomInt(minX, maxX);
-            attempts++;
-        } while (attempts < maxAttempts && usedPositions.some(pos => Math.abs(pos - x) < minSpacing));
-
-        usedPositions.push(x);
-        positions.push(x);
+    for (let i = 0; i < finalAnswers.length; i++) {
+        // Place each meteor in its own section with slight random offset
+        const sectionStart = padding + (i * sectionWidth);
+        const randomOffset = Math.random() * (sectionWidth - meteorWidth);
+        const x = sectionStart + randomOffset;
+        positions.push(Math.max(padding, Math.min(x, gameArea.width - meteorWidth - padding)));
     }
 
     // Spawn each meteor with staggered timing
-    allAnswers.forEach((answer, index) => {
+    finalAnswers.forEach((answer, index) => {
         setTimeout(() => {
             if (!gameState.isPlaying || gameState.isPaused) return;
+
+            // Check if we already have max meteors on screen
+            if (gameState.meteors.length >= maxMeteors) return;
 
             const isCorrect = answer === correctAnswer;
             const meteorElement = createMeteorElement(answer, isCorrect);
@@ -613,7 +623,7 @@ function spawnMeteorSet() {
             };
 
             gameState.meteors.push(meteorObj);
-        }, index * CONFIG.meteorSpawnDelay); // Stagger spawn by delay
+        }, index * CONFIG.meteorSpawnDelay);
     });
 }
 
@@ -1014,6 +1024,7 @@ function handleJoystickMove(e) {
 
 function handleJoystickEnd(e) {
     e.preventDefault();
+    e.stopPropagation();
     gameState.touch.joystickActive = false;
 
     // Reset knob position
@@ -1030,14 +1041,21 @@ function handleJoystickEnd(e) {
 
 function handleFireStart(e) {
     e.preventDefault();
+    e.stopPropagation();
+    // Only handle fire, don't touch movement keys
     gameState.keys.shoot = true;
-    elements.touch.fireButton.classList.add('active');
+    if (elements.touch.fireButton) {
+        elements.touch.fireButton.classList.add('active');
+    }
 }
 
 function handleFireEnd(e) {
     e.preventDefault();
+    e.stopPropagation();
     gameState.keys.shoot = false;
-    elements.touch.fireButton.classList.remove('active');
+    if (elements.touch.fireButton) {
+        elements.touch.fireButton.classList.remove('active');
+    }
 }
 
 // ==========================================
