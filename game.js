@@ -815,6 +815,9 @@ function handleCorrectHit(meteor) {
     // Remove meteor from array
     gameState.meteors = gameState.meteors.filter(m => m !== meteor);
 
+    // Set flag BEFORE clearing to prevent updateMeteors from triggering duplicate spawn
+    gameState.isSpawningMeteors = true;
+
     // Clear remaining meteors and bullets
     clearAllMeteors();
     clearAllBullets();
@@ -825,15 +828,23 @@ function handleCorrectHit(meteor) {
     if (gameState.stageProgress >= gameState.meteorsPerStage) {
         if (gameState.stage >= CONFIG.totalStages) {
             // Victory!
+            gameState.isSpawningMeteors = false;
             gameOver(true);
         } else {
             // Next stage
             nextStage();
+            // nextStage will handle spawning, so reset flag after
+            gameState.isSpawningMeteors = false;
         }
     } else {
         // Next question with delay to prevent accidental hits
         generateQuestion();
-        setTimeout(() => spawnMeteorSet(), CONFIG.nextQuestionDelay);
+        setTimeout(() => {
+            if (gameState.isPlaying && !gameState.isPaused) {
+                spawnMeteorSet();
+            }
+            gameState.isSpawningMeteors = false;
+        }, CONFIG.nextQuestionDelay);
     }
 }
 
