@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>數學隕石射擊 - Math Meteor Shooter</title>
+    <meta name="description" content="一款結合九九乘法表與射擊的教育遊戲，操控飛機射擊正確答案的隕石！">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- html2canvas for image download -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <!-- FileSaver.js for cross-browser file download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC1WXgBoECPTLOrPX2NdIk6qAbhQZWGHxY",
+            authDomain: "math-meteor-shooter.firebaseapp.com",
+            projectId: "math-meteor-shooter",
+            storageBucket: "math-meteor-shooter.firebasestorage.app",
+            messagingSenderId: "554106035586",
+            appId: "1:554106035586:web:e2997504486cb64987439b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Expose Firebase functions globally for game.js
+        window.FirebaseDB = {
+            db,
+            collection,
+            addDoc,
+            query,
+            orderBy,
+            limit,
+            getDocs,
+            serverTimestamp
+        };
+    </script>
+</head>
+
+<body>
+    <!-- 開始畫面 -->
+    <div id="start-screen" class="screen active">
+        <div class="title-container">
+            <h1 class="game-title">
+                <span class="title-math">數學</span>
+                <span class="title-meteor">隕石</span>
+                <span class="title-shooter">射擊</span>
+            </h1>
+            <p class="subtitle">MATH METEOR SHOOTER</p>
+        </div>
+
+        <div class="settings-container">
+            <!-- 玩家名字輸入 -->
+            <div class="setting-group">
+                <label class="setting-label">玩家名稱</label>
+                <input type="text" id="player-name" class="name-input" placeholder="輸入你的名字" maxlength="12">
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">選擇難度</label>
+                <div class="difficulty-buttons">
+                    <button class="difficulty-btn active" data-difficulty="easy">
+                        <span class="diff-icon">🌟</span>
+                        <span class="diff-name">初級</span>
+                        <span class="diff-desc">5條命 · 有提示</span>
+                    </button>
+                    <button class="difficulty-btn" data-difficulty="medium">
+                        <span class="diff-icon">⚡</span>
+                        <span class="diff-name">中級</span>
+                        <span class="diff-desc">3條命 · 較快</span>
+                    </button>
+                    <button class="difficulty-btn" data-difficulty="hard">
+                        <span class="diff-icon">🔥</span>
+                        <span class="diff-name">高級</span>
+                        <span class="diff-desc">2條命 · 最快</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">每關隕石數量</label>
+                <div class="meteor-count-buttons">
+                    <button class="count-btn" data-count="5">5</button>
+                    <button class="count-btn active" data-count="10">10</button>
+                    <button class="count-btn" data-count="15">15</button>
+                    <button class="count-btn" data-count="20">20</button>
+                </div>
+            </div>
+
+            <button id="start-btn" class="start-button">
+                <span>開始遊戲</span>
+                <span class="btn-glow"></span>
+            </button>
+        </div>
+
+        <div class="controls-info">
+            <p><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> 或 <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>
+                移動</p>
+            <p><kbd>空白鍵</kbd> 發射</p>
+            <p class="touch-hint">📱 觸控裝置自動顯示虛擬搖桿</p>
+        </div>
+    </div>
+
+    <!-- 遊戲畫面 -->
+    <div id="game-screen" class="screen">
+        <div id="game-hud">
+            <div class="hud-left">
+                <div class="hud-item">
+                    <span class="hud-label">關卡</span>
+                    <span id="stage-display" class="hud-value">1</span>
+                    <span class="hud-max">/ 20</span>
+                </div>
+                <div class="hud-item">
+                    <span class="hud-label">分數</span>
+                    <span id="score-display" class="hud-value">0</span>
+                </div>
+            </div>
+            <div class="hud-center">
+                <div id="question-display" class="question-box">
+                    <span class="question-text">3 × 7 = ?</span>
+                </div>
+            </div>
+            <div class="hud-right">
+                <div class="hud-item">
+                    <span class="hud-label">生命</span>
+                    <span id="lives-display" class="lives-hearts">❤️❤️❤️❤️❤️</span>
+                </div>
+                <div class="hud-item">
+                    <span class="hud-label">進度</span>
+                    <span id="progress-display" class="hud-value">0</span>
+                    <span id="progress-max" class="hud-max">/ 10</span>
+                </div>
+                <button id="sound-toggle" class="sound-btn" title="音效開關">
+                    <span class="sound-on">🔊</span>
+                    <span class="sound-off hidden">🔇</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="game-area">
+            <div id="meteors-container"></div>
+            <div id="bullets-container"></div>
+            <div id="player-plane">
+                <div class="plane-body"></div>
+                <div class="plane-wing left"></div>
+                <div class="plane-wing right"></div>
+                <div class="plane-engine"></div>
+            </div>
+        </div>
+
+        <div id="stage-transition" class="hidden">
+            <div class="stage-text">
+                <span class="stage-label">關卡</span>
+                <span id="stage-number">2</span>
+            </div>
+        </div>
+
+        <div id="pause-overlay" class="hidden">
+            <div class="pause-content">
+                <h2>遊戲暫停</h2>
+                <button id="resume-btn" class="menu-btn">繼續遊戲</button>
+                <button id="quit-btn" class="menu-btn secondary">結束遊戲</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 結算畫面 -->
+    <div id="results-screen" class="screen">
+        <div class="results-content">
+            <h2 id="results-title" class="results-title">遊戲結算</h2>
+
+            <!-- 可下載的結果區域 -->
+            <div id="results-download-area" class="results-download-area">
+                <div class="results-header">
+                    <span class="results-player-name" id="results-player-name">玩家名稱</span>
+                    <span class="results-date" id="results-date">2024/01/01</span>
+                </div>
+
+                <div class="final-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">最終關卡</span>
+                        <span id="result-stage" class="stat-value">5</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">總得分</span>
+                        <span id="result-score" class="stat-value">250</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">正確 / 錯誤</span>
+                        <span id="result-accuracy" class="stat-value">8 / 2</span>
+                    </div>
+                </div>
+
+                <!-- 錯誤題目列表 -->
+                <div class="wrong-answers-section">
+                    <h3 class="wrong-answers-title">❌ 答錯的題目</h3>
+                    <div id="wrong-answers-list" class="wrong-answers-list">
+                        <!-- 動態產生 -->
+                    </div>
+                    <p id="no-wrong-answers" class="no-wrong-msg hidden">🎉 全部答對！太厲害了！</p>
+                </div>
+
+                <div class="results-footer">
+                    <span>數學隕石射擊 Math Meteor Shooter</span>
+                </div>
+            </div>
+
+            <div class="results-buttons">
+                <button id="download-result-btn" class="menu-btn">📥 下載成績單</button>
+                <button id="finish-btn" class="menu-btn secondary">結束 → 排行榜</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 排行榜畫面 -->
+    <div id="leaderboard-screen" class="screen">
+        <div class="leaderboard-content">
+            <h2 class="leaderboard-title">🏆 排行榜</h2>
+
+            <div class="leaderboard-table-container">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>玩家</th>
+                            <th>關卡</th>
+                            <th>分數</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body">
+                        <!-- 動態產生 -->
+                    </tbody>
+                </table>
+                <p id="leaderboard-loading" class="loading-text">載入中...</p>
+                <p id="leaderboard-empty" class="empty-text hidden">還沒有紀錄，成為第一個吧！</p>
+            </div>
+
+            <div class="leaderboard-buttons">
+                <button id="play-again-btn" class="menu-btn">再玩一次</button>
+                <button id="back-home-btn" class="menu-btn secondary">返回主選單</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 觸控控制 -->
+    <div id="touch-controls" class="hidden">
+        <div id="joystick-area">
+            <div id="joystick-knob"></div>
+        </div>
+        <div id="fire-button">
+            <span>🔥</span>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+
+</html>
