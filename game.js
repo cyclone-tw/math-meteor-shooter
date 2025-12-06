@@ -255,7 +255,7 @@ let gameState = {
     currentScreen: 'start',
     playerName: '',
     difficulty: 'easy',
-    meteorsPerStage: 10,
+    meteorsPerStage: 5,
     stage: 1,
     score: 0,
     lives: 5,
@@ -506,8 +506,19 @@ function initGame() {
     // Start game loop
     startGameLoop();
 
+    // Set flag to prevent updateMeteors from triggering duplicate spawn
+    gameState.isSpawningMeteors = true;
+
     // Spawn initial meteors with staggered timing
     spawnMeteorSet();
+
+    // Reset flag after spawn delay completes
+    const gameArea = elements.game.area.getBoundingClientRect();
+    const isMobile = gameArea.width < 600;
+    const maxMeteors = isMobile ? 4 : 5;
+    setTimeout(() => {
+        gameState.isSpawningMeteors = false;
+    }, maxMeteors * CONFIG.meteorSpawnDelay + 100);
 }
 
 function resetPlanePosition() {
@@ -928,7 +939,18 @@ function nextStage() {
         gameState.isPaused = false;
         updateHUD();
         generateQuestion();
+
+        // Set flag to prevent updateMeteors from triggering duplicate spawn
+        gameState.isSpawningMeteors = true;
         spawnMeteorSet();
+
+        // Reset flag after spawn delay completes
+        const gameArea = elements.game.area.getBoundingClientRect();
+        const isMobile = gameArea.width < 600;
+        const maxMeteors = isMobile ? 4 : 5;
+        setTimeout(() => {
+            gameState.isSpawningMeteors = false;
+        }, maxMeteors * CONFIG.meteorSpawnDelay + 100);
     }, 1500);
 }
 
