@@ -1,5 +1,11 @@
 # Math Meteor Shooter (數學隕石射擊)
 
+<!-- udl-family-block v1 -->
+> **UDL 教學家族**：本 repo 是九九乘法射擊遊戲（舊，不再開發）；值得留的部分之後併入 `udl-math`，其餘封存。新工作不要放這裡：新教材放對應科目的 `udl-<科目>` repo，呈現與平台功能放 `udl-learning`。
+> 上游：無；下游：學生裝置（GitHub Pages 網頁）。
+> 家族地圖正本：`cyclone-tw/udl-learning` 的 `docs/family-map.md`（私人 repo）。要改本 repo 的角色或串接方式，先改地圖。
+<!-- /udl-family-block -->
+
 這是一款結合 **九九乘法表** 與 **射擊遊戲** 的教育網頁遊戲。玩家需要操控飛機，計算螢幕上顯示的數學題目（例如 `3 × 7 = ?`），並射擊帶有正確答案數字的隕石。
 
 ## 🎮 遊戲特色
